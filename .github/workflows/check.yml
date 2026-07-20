@@ -2,7 +2,7 @@ name: Flight price check
 
 on:
   schedule:
-    - cron: "7 * * * *"   # каждый час в :07
+    - cron: "*/10 * * * *"   # каждые 10 минут
   workflow_dispatch:        # ручной запуск кнопкой
 
 permissions:
