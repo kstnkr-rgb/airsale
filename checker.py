@@ -15,7 +15,7 @@ import os
 import sys
 import urllib.parse
 import urllib.request
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
@@ -24,7 +24,9 @@ ORIGIN = "KGD"
 DESTINATION = "SSH"
 DATE_FROM = date(2026, 7, 27)
 DATE_TO = date(2026, 8, 10)
-THRESHOLD_RUB = 10_000
+THRESHOLD_RUB = 20_000
+# Летом Египет живёт по UTC+3 (Калининград — UTC+2); нужно для местного времени прилёта
+EGYPT_TZ = timezone(timedelta(hours=3))
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state.json")
 
 API_URL = "https://api.travelpayouts.com/aviasales/v3/prices_for_dates"
@@ -59,6 +61,13 @@ def load_state() -> dict:
 def save_state(state: dict) -> None:
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def flight_times(f: dict) -> tuple:
+    """Вылет (местное время Калининграда) и прилёт (местное время Египта)."""
+    dep = datetime.fromisoformat(f["departure_at"])
+    arr = (dep + timedelta(minutes=f["duration"])).astimezone(EGYPT_TZ)
+    return dep, arr
 
 
 def send_telegram(bot_token: str, chat_id: str, text: str) -> None:
@@ -97,7 +106,9 @@ def main() -> None:
     in_window.sort(key=lambda f: f["departure_at"])
     print(f"Рейсов в окне {DATE_FROM}—{DATE_TO}: {len(in_window)}")
     for f in in_window:
-        print(f"  {f['departure_at'][:16]}  {f['airline']}{f['flight_number']}  {f['price']} руб.")
+        dep, arr = flight_times(f)
+        print(f"  {dep:%d.%m %H:%M} -> {arr:%d.%m %H:%M}  "
+              f"{f['airline']}{f['flight_number']}  {f['price']} руб.")
 
     cheap = [f for f in in_window if f["price"] < THRESHOLD_RUB]
 
@@ -125,13 +136,16 @@ def main() -> None:
 
     lines = [f"✈️ <b>Найден билет дешевле {THRESHOLD_RUB:,} ₽!</b>".replace(",", " ")]
     for f in new_alerts:
-        dep = f["departure_at"][:16].replace("T", " ")
+        dep, arr = flight_times(f)
         url = "https://www.aviasales.ru" + f["link"]
+        hours, minutes = divmod(f["duration"], 60)
         lines.append(
-            f"\n📅 {dep}\n"
-            f"💰 <b>{f['price']:,} ₽</b>".replace(",", " ") +
-            f"\n🛫 {f['airline']} {f['flight_number']}, прямой, KGD → SSH\n"
-            f'<a href="{url}">Купить на Aviasales</a>'
+            f"\n📅 <b>{dep:%d.%m.%Y}</b> — рейс {f['airline']} {f['flight_number']}, "
+            f"прямой, Калининград → Шарм-эль-Шейх\n"
+            f"🛫 Вылет: {dep:%H:%M} (местное) — 🛬 Прилёт: {arr:%d.%m} {arr:%H:%M} (местное)\n"
+            f"⏱ В пути: {hours} ч {minutes:02d} мин\n"
+            f"💰 Цена: <b>{f['price']:,} ₽</b>".replace(",", " ") +
+            f'\n<a href="{url}">Купить на Aviasales</a>'
         )
     message = "\n".join(lines)
     print(message)
