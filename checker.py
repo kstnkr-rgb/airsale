@@ -22,7 +22,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 
 ORIGIN = "KGD"
 DESTINATION = "SSH"
-DATE_FROM = date(2026, 7, 27)
+DATE_FROM = date(2026, 7, 20)
 DATE_TO = date(2026, 8, 10)
 THRESHOLD_RUB = 20_000
 # Летом Египет живёт по UTC+3 (Калининград — UTC+2); нужно для местного времени прилёта
