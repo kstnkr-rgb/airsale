@@ -14,15 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Check KGD -> SSH (Шарм)
-        env:
-          TP_TOKEN: ${{ secrets.TP_TOKEN }}
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-        run: python3 checker.py
-
       - name: Check KGD <-> LED (Питер, туда-обратно на 3)
-        if: always()
         env:
           TP_TOKEN: ${{ secrets.TP_TOKEN }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
@@ -32,10 +24,10 @@ jobs:
       - name: Save alert state
         if: always()
         run: |
-          if ! git diff --quiet state.json state_spb.json 2>/dev/null; then
+          if ! git diff --quiet state_spb.json 2>/dev/null; then
             git config user.name "flight-bot"
             git config user.email "actions@github.com"
-            git add state.json state_spb.json
+            git add state_spb.json
             git commit -m "update alert state"
             git push
           fi
